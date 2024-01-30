@@ -1,0 +1,9 @@
+{{- range $key, $value := $.Values.vmservicescrape }}
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: vmservicescrape-{{ $key }}
+spec:
+  {{- toYaml $value | nindent 2 }}
+{{- end }}

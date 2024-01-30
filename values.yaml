@@ -1,0 +1,167 @@
+#### VMNodeScrape
+# The VMNodeScrape CRD provides discovery mechanism for scraping metrics kubernetes nodes, it is useful for node exporters monitoring.
+# https://docs.victoriametrics.com/operator/resources/vmnodescrape.html
+# https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/vmnodescrape
+vmnodescrape: {}
+#  cadvisor-metrics:
+#    scheme: "https"
+#    tlsConfig:
+#      insecureSkipVerify: true
+#      caFile: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+#    bearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+#    relabelConfigs:
+#      - action: labelmap
+#        regex: __meta_kubernetes_node_label_(.+)
+#      - targetLabel: __address__
+#        replacement: kubernetes.default.svc:443
+#      - sourceLabels: [__meta_kubernetes_node_name]
+#        regex: (.+)
+#        targetLabel: __metrics_path__
+#        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+#
+#  node-exporter:
+#    path: /metrics
+#    port: "9111"
+#    scrape_interval: 30s
+#  #   relabelConfigs：  # relabel
+#  #   selector:  # no need, due we'd like to scrape by host port
+
+#### VMPodScrape
+# The VMPodScrape CRD allows to declaratively define how a dynamic set of pods should be monitored.
+# Use it in case when POD has metrics and EXPOSE THEM (not just localhost, bind to interface or 0.0.0.0)
+# but doesn't have svc/service (maybe by security reason and so on... who knows ...
+# https://docs.victoriametrics.com/operator/resources/vmpodscrape.html
+# https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/vmpodscrape
+vmpodscrape: {}
+#  node-exporter:
+#    selector:
+#      matchLabels:
+#        app.kubernetes.io/name: node-exporter
+#    podMetricsEndpoints:
+#      - port: prometheus
+#        path: /metrics
+#        relabelConfigs:
+#          - sourceLabels:
+#              - "__meta_kubernetes_pod_node_name"
+#            action: replace
+#            targetLabel: instance
+#
+#  abcloud-pods:
+#    jobLabel: abcloud
+#    podMetricsEndpoints:
+#      - targetPort: 8080
+#        path: /metrics
+#        scheme: http
+#    namespaceSelector:
+#      matchNames:
+#        - abcloud-system
+#    selector:
+#      matchLabels:
+#        control-plane: controller-manager
+
+#### VMServiceScrape
+# My lovely and best choice :)
+# The VMServiceScrape CRD allows to define a dynamic set of services for monitoring.
+# https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/vmservicescrape
+# https://docs.victoriametrics.com/operator/resources/vmservicescrape.html
+vmservicescrape: {}
+#  # scrape everything that doesn't match release=prometheus-node-exporter
+#  # bad practice, do we really need to spend any vmagent's res to checking any endpoints
+#  metrics-endpoint:
+#    selector:
+#      matchLabels:
+#        release: "!prometheus-node-exporter"
+#    namespaceSelector: {}
+#      # matchNames:
+#      #   - "kube-system"
+#      # any: true # if namespaceSelector is empty then scrapes all NS
+#    podMetricsEndpoints:
+#      - port: metrics # port name in the pods spec:containers:ports:*:name
+#        path: /metrics
+#        relabelConfigs:
+#          - sourceLabels:
+#              - "__meta_kubernetes_pod_node_name"
+#            action: replace
+#            targetLabel: instance
+
+#  haproxy-ingress:
+#    endpoints:
+#      - port: ctrl-metrics
+#        relabelConfigs:
+#          - action: replace
+#            sourceLabels:
+#              - __meta_kubernetes_endpoint_node_name
+#            targetLabel: instance
+#          - action: replace
+#            sourceLabels:
+#              - __meta_kubernetes_endpoint_node_name
+#            targetLabel: hostname
+#      - port: metrics
+#        relabelConfigs:
+#          - action: replace
+#            sourceLabels:
+#              - __meta_kubernetes_endpoint_node_name
+#            targetLabel: instance
+#    jobLabel: haproxy-ingress
+#    namespaceSelector:
+#      matchNames:
+#        - ingress-controller-system
+#    selector:
+#      matchLabels:
+#        app.kubernetes.io/name: haproxy-ingress
+
+#  harbor:
+#    endpoints:
+#      - path: /metrics
+#        port: http-metrics
+#    jobLabel: harbor
+#    namespaceSelector:
+#      matchNames:
+#        - harbor-system
+#    selector:
+#      matchLabels:
+#        app: harbor
+
+#### VMStaticScrape
+# The VMStaticScrape CRD provides mechanism for scraping metrics from static targets, configured by CRD targets.
+# like outside DB, any sensors, IoT etc...
+# https://docs.victoriametrics.com/operator/resources/vmstaticscrape.html
+# https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/vmstaticscrape
+vmstaticscrape: {}
+#  dc-usp-schneider:
+#    jobName: "DataCenter-sensor-Schneider-Electric"
+#    targetEndpoints:
+#      - targets: ["ups-ala01-sr03-se05.azadevlab.local"]
+#        labels:
+#          env: datacenter
+#          region: kz
+#          city: almaty
+#          dc_name: ala01
+#          server_room: sr03
+#          type: ups
+#          rack: se05
+#          unit: ""
+#        scheme: "https"
+#        path: "/agent-id-goes-here/metrics"
+#
+#  bloomberg-data-euoption:
+#    jobName: external-web-site-scrape
+#    targetEndpoints:
+#      - targets:
+#          - bloomberg-data-euoption.example.com:18054
+#          - 192.168.0.50:9100
+#        path: /admin/manage/metrics
+#        labels:
+#          env: external-web-site
+#          region: world
+#          domain: example.com
+#          site: bloomberg-euoption
+#          type: vendor-data-euoptions
+#        scheme: http
+#        interval: "30s"
+#        authorization:
+#          credentials:
+#            key: bearer-token
+#            name: bloomberg-site-token
+#        tlsConfig:
+#          insecureSkipVerify: true
