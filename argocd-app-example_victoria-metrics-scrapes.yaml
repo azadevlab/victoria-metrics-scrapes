@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: victoria-metrics-scrapes
+  namespace: argocd-system
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-system
+  project: default
+  source:
+    repoURL: "https://gitlab.azadevlab.local/infrastructure/helm/victoria-metrics-scrapes.git"
+    path: ./
+    targetRevision: HEAD
+    plugin:
+      name: argocd-vault-plugin-helm-with-values
+      env:
+        - name: ARGOCD_ENV_HELM_VALUES
+          value: |
+            ### VMNodeScrape
+            vmnodescrape: {}
+
+            ### VMPodScrape
+            vmpodscrape:
+              abcloud-pods:
+                jobLabel: aza-cloud
+                podMetricsEndpoints:
+                  - targetPort: 8080
+                    path: /metrics
+                    scheme: http
+                namespaceSelector:
+                  matchNames:
+                    - aza-cloud-operator
+                selector:
+                  matchLabels:
+                    control-plane: controller-manager
+
+            ### VMServiceScrape
+            vmservicescrape:
+              haproxy-ingress:
+                endpoints:
+                  - port: ctrl-metrics
+                    relabelConfigs:
+                      - action: replace
+                        sourceLabels:
+                          - __meta_kubernetes_endpoint_node_name
+                        targetLabel: instance
+                      - action: replace
+                        sourceLabels:
+                          - __meta_kubernetes_endpoint_node_name
+                        targetLabel: hostname
+                  - port: metrics
+                    relabelConfigs:
+                      - action: replace
+                        sourceLabels:
+                          - __meta_kubernetes_endpoint_node_name
+                        targetLabel: instance
+                jobLabel: haproxy-ingress
+                namespaceSelector:
+                  matchNames:
+                    - ingress-controller-system
+                selector:
+                  matchLabels:
+                    app.kubernetes.io/name: haproxy-ingress
+
+              harbor:
+                endpoints:
+                  - path: /metrics
+                    port: http-metrics
+                jobLabel: harbor
+                namespaceSelector:
+                  matchNames:
+                    - harbor-system
+                selector:
+                  matchLabels:
+                    app: harbor
+
+            ### VMStaticScrape
+            vmstaticscrape: {}
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
